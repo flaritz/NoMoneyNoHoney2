@@ -11,7 +11,7 @@ class CreateFromWeb:
 
 	# Init
 	def __init__(self):	
-		self.user = "flaritz"
+		self.user = "root"
 		self.password = "Skippy12**"
 		self.host = "127.0.0.1"
 		self.database = "no_money_no_honey_2"
@@ -27,6 +27,9 @@ class CreateFromWeb:
 		# Setup SQL Connection
 		self.setupSQL()
 
+		# Create Company table
+		self.createCompanyTable()
+
 		# Populate NYSE Entries
 		self.setupAndRunFTP("ftp.nasdaqtrader.com", "SymbolDirectory", "otherlisted.txt", self.addNYSE)
 		print "Finished adding NYSE entries"
@@ -36,8 +39,8 @@ class CreateFromWeb:
 		# print "Finished adding NASDAQ entires"
 
 		# Populates MySQL database with NYSE and NASDAQ data
-		self.createAllCompanyStockTables()
-		print "Finished creating individual company tables"
+		self.createAllCompanyDataTables()
+		print "Finished creating company data tables"
 
 		# Cleanup
 		self.cleanupSQL()
@@ -72,6 +75,29 @@ class CreateFromWeb:
 	#############################################################################################################
 	###												Table Functions											  ###
 	#############################################################################################################
+
+	# Creates company table that lists all companies in NYSE NASDAQ
+	def createCompanyTable(self):
+
+		# Create and execute query to create company table if necessary
+		if (self.tableDoesNotExist("company")):
+
+			query = "CREATE TABLE company ( \
+				ticker_id VARCHAR(16) NOT NULL, \
+				exchange VARCHAR(64) NOT NULL, \
+				sector VARCHAR(128) NOT NULL, \
+				of_interest TINYINT(8) NOT NULL, \
+				name VARCHAR(256) NOT NULL, \
+				primary key (ticker_id) \
+			);"
+
+			self.executeSQL(query) 
+
+			# Commit changes
+			self.sqlConnection.commit()
+
+			print "Created company table"
+
 
 	# Add NYSE stock to company table in SQL database
 	def addNYSE(self, companyStr):
@@ -117,7 +143,7 @@ class CreateFromWeb:
 		# Commit changes
 		self.sqlConnection.commit()
 
-	def createAllCompanyStockTables(self):
+	def createAllCompanyDataTables(self):
 
 		# Get all ticker IDs
 		ticker_ids = self.executeSQL("SELECT ticker_id from company;")
@@ -127,15 +153,15 @@ class CreateFromWeb:
 
 			# Check if company table already exists
 			# Create company table if necessary
-			if (len(self.executeSQL("SHOW TABLES LIKE '%s_data'" % (ticker_id[0]))) == 0):
+			if (self.tableDoesNotExist(ticker_id[0] + "_data")):
 				self.createCompanyDataTable(self.sanitizeInput(ticker_id[0]))
 			else:
 				print "Table already exists for company: %s" % ticker_id[0]
 
-	# Create a company table in the SQL database
+	# Create a company data table in the SQL database
 	def createCompanyDataTable(self, tickerID):
 
-		# Create and execute query to create a company table
+		# Create and execute query to create a company data table
 		query = "CREATE TABLE %s_data ( \
 			time DATETIME NOT NULL, \
 			open DOUBLE NOT NULL, \
@@ -212,10 +238,19 @@ class CreateFromWeb:
 
 		return returnResults
 
+	# Checks if SQL database has table with name tableName
+	def tableExists(self, tableName):
+
+		return not (len(self.executeSQL("SHOW TABLES LIKE '%s'" % (tableName))) == 0)
+
+	# Checks if SQL database doesn't have table with name tableName
+	def tableDoesNotExist(self, tableName):
+
+		return (len(self.executeSQL("SHOW TABLES LIKE '%s'" % (tableName))) == 0)
+
 
 # Run CreateFromWeb's main() for calls to main()
 if __name__ == "__main__":
 	
 	createFromWeb = CreateFromWeb()
 	createFromWeb.main()
-	
