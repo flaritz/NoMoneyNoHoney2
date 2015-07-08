@@ -36,7 +36,7 @@ class CreateFromWeb:
 		# print "Finished adding NASDAQ entires"
 
 		# Populates MySQL database with Nasdaq and NYSE data
-		self.createCompanyStockTables()
+		self.createAllCompanyStockTables()
 		print "Finished creating individual company tables"
 
 		# Cleanup
@@ -77,7 +77,7 @@ class CreateFromWeb:
 	def addNYSE(self, companyStr):
 
 		# Ignore first and last lines
-		if companyStr[:10] != "ACT Symbol" and companyStr[:4] != "File":
+		if companyStr[:10] != "ACT Symbol" and companyStr[:5] != "File ":
 				
 				companyArr = companyStr.split('|')
 				
@@ -89,7 +89,18 @@ class CreateFromWeb:
 					
 	# Add Nasdaq stock to company table in SQL database
 	def addNASDAQ(self, companyStr):
-		None
+		
+		# Ignore first and last lines
+		if companyStr[:7] != "Symbol|" and companyStr[:5] != "File ":
+
+				companyArr = companyStr.split('|')
+				
+				# Check length 
+				if len(companyArr) == 6:
+
+					# Get, sanitize, and commit company data
+					self.addCompanyToTable(self.sanitizeInput(companyArr[0]), self.sanitizeInput(companyArr[1]), "NASDAQ", "NONE", 0)
+					
 
 	# Add a company to company table in SQL database
 	def addCompanyToTable(self, tickerID, name, exchange, sector, interest):
@@ -106,36 +117,42 @@ class CreateFromWeb:
 		# Commit changes
 		self.sqlConnection.commit()
 
-	def createCompanyStockTables(self):
-		None
-		# query = "SELECT ticker_id from company;"
-		# results = c.execute(query, multi=True)
-		# for result in results:
-		# 	if result.with_rows:
-		# 		ticker_ids = result.fetchall()
-		# 		for ticker_id in ticker_ids:
-		# 			print ticker_id[0]
-		# 			query = "SHOW TABLES LIKE '%s_data'" % (ticker_id[0])
-		# 			results2 = c.execute(query, multi=True)
-		# 			for result2 in results2:
-		# 				if result2.with_rows:
-		# 					tables = result2.fetchall()
-		# 					if len(tables) == 0:
-		# 						print 'not there'
-		# 						query = "CREATE TABLE %s_data ( \
-		# 									time DATETIME NOT NULL, \
-		# 									open DOUBLE NOT NULL, \
-		# 									high DOUBLE NOT NULL, \
-		# 									low DOUBLE NOT NULL, \
-		# 									close DOUBLE NOT NULL, \
-		# 									volumn INTEGER(10) NOT NULL, \
-		# 									adj_close DOUBLE NOT NULL, \
-		# 									primary key (time) \
-		# 								);" % (sanitizeInput(ticker_id[0]))
-		# 						results3 = c.execute(query, multi=True)
-		# 						for result3 in results3:
-		# 							if result3.with_rows:
-		# 								result3.fetchall()
+	def createAllCompanyStockTables(self):
+
+		# Get all ticker IDs
+		ticker_ids = self.executeSQL("SELECT ticker_id from company;")
+
+		# Create company table for each ticker ID
+		for ticker_id in ticker_ids:
+
+			# Check if company table already exists
+			# Create company table if necessary
+			if (len(self.executeSQL("SHOW TABLES LIKE '%s_data'" % (ticker_id[0]))) == 0):
+				self.createCompanyDataTable(self.sanitizeInput(ticker_id[0]))
+			else:
+				print "Table already exists for company: %s" % ticker_id[0]
+
+	# Create a company table in the SQL database
+	def createCompanyDataTable(self, tickerID):
+
+		# Create and execute query to create a company table
+		query = "CREATE TABLE %s_data ( \
+			time DATETIME NOT NULL, \
+			open DOUBLE NOT NULL, \
+			high DOUBLE NOT NULL, \
+			low DOUBLE NOT NULL, \
+			close DOUBLE NOT NULL, \
+			volumn INTEGER(10) NOT NULL, \
+			adj_close DOUBLE NOT NULL, \
+			primary key (time) \
+		);" % (tickerID)
+
+		self.executeSQL(query) 
+
+		# Commit changes
+		self.sqlConnection.commit()
+
+		print "Created table for company: %s" % tickerID 
 
 	#############################################################################################################
 	###												Data Functions											  ###
@@ -180,16 +197,20 @@ class CreateFromWeb:
 		inputStr = inputStr.replace("'", '')
 		inputStr = inputStr.replace(";", '')
 		inputStr = inputStr.replace(".", '_')
+
 		return inputStr
 
-	# Execute an SQL query and clear buffer with fetchall()
+	# Execute an SQL query and clear and return buffer with fetchall()
 	def executeSQL(self, query):
 
+		returnResults = None
 		cursorResults = self.cursor.execute(query, multi=True)
 		
 		for result in cursorResults:
 			if result.with_rows:
-				result.fetchall()
+				returnResults = result.fetchall()
+
+		return returnResults
 
 
 # Run CreateFromWeb's main() for calls to main()
