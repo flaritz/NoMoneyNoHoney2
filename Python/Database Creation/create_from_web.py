@@ -6,7 +6,7 @@ from ftplib import FTP
 ###											CreateFromWeb Class											  ###
 #############################################################################################################
 
-# Creates tables in MySQL database for all Nasdaq and NYSE stocks
+# Create tables in MySQL database for all NYSE and NASDAQ stocks
 class CreateFromWeb:
 
 	# Init
@@ -31,11 +31,11 @@ class CreateFromWeb:
 		self.setupAndRunFTP("ftp.nasdaqtrader.com", "SymbolDirectory", "otherlisted.txt", self.addNYSE)
 		print "Finished adding NYSE entries"
 
-		# Populate Nasdaq Entries
+		# Populate NASDAQ Entries
 		# self.setupAndRunFTP("ftp.nasdaqtrader.com", "SymbolDirectory", "nasdaqlisted.txt", self.addNASDAQ)
 		# print "Finished adding NASDAQ entires"
 
-		# Populates MySQL database with Nasdaq and NYSE data
+		# Populates MySQL database with NYSE and NASDAQ data
 		self.createAllCompanyStockTables()
 		print "Finished creating individual company tables"
 
@@ -47,9 +47,9 @@ class CreateFromWeb:
 	###												Setup Functions											  ###
 	#############################################################################################################
 
+	# Setup SQL Connection
 	def setupSQL(self):
 
-		# self.sqlConnection = sql.connect(user='mboch', password='Macallan2181', host='127.0.0.1', database='no_money_no_honey_2')
 		self.sqlConnection = sql.connect(user=self.user, password=self.password, host=self.host, database=self.database)
 		self.cursor = self.sqlConnection.cursor()
 		print "SQL Connected: %s" % self.database
@@ -87,7 +87,7 @@ class CreateFromWeb:
 					# Get, sanitize, and commit company data
 					self.addCompanyToTable(self.sanitizeInput(companyArr[0]), self.sanitizeInput(companyArr[1]), "NYSE", "NONE", 0)
 					
-	# Add Nasdaq stock to company table in SQL database
+	# Add NASDAQ stock to company table in SQL database
 	def addNASDAQ(self, companyStr):
 		
 		# Ignore first and last lines
@@ -218,3 +218,4 @@ if __name__ == "__main__":
 	
 	createFromWeb = CreateFromWeb()
 	createFromWeb.main()
+	
